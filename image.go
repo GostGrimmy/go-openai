@@ -66,26 +66,28 @@ type ImageEditRequest struct {
 // CreateEditImage - API call to create an image. This is the main endpoint of the DALL-E API.
 func (c *Client) CreateEditImage(ctx context.Context, request ImageEditRequest) (response ImageResponse, err error) {
 	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
 	// image
-	var imgBytes []byte
-	_, err = request.Image.Read(imgBytes)
+	var f io.Writer
+	writer := multipart.NewWriter(body)
 	if err != nil {
 		return
 	}
-	err = writer.WriteField("image", string(imgBytes))
+	f, err = writer.CreateFormField("image")
+	if err != nil {
+		return
+	}
+	_, err = io.Copy(f, request.Image)
 	if err != nil {
 		return
 	}
 	// mask, it is optional
 	if request.Mask != nil {
-		var mBytes []byte
-		_, err = request.Image.Read(mBytes)
 		if err != nil {
 			return
 		}
-		err = writer.WriteField("mask", string(mBytes))
+		var fw io.Writer
+		fw, err = writer.CreateFormField("mask")
+		_, err = io.Copy(fw, request.Mask)
 		if err != nil {
 			return
 		}
@@ -126,19 +128,19 @@ type ImageVariRequest struct {
 // Use abbreviations(vari for variation) because ci-lint has a single-line length limit ...
 func (c *Client) CreateVariImage(ctx context.Context, request ImageVariRequest) (response ImageResponse, err error) {
 	body := &bytes.Buffer{}
+	var f io.Writer
 	writer := multipart.NewWriter(body)
-
-	// image
-	var imgBytes []byte
-	_, err = request.Image.Read(imgBytes)
 	if err != nil {
 		return
 	}
-	err = writer.WriteField("image", string(imgBytes))
+	f, err = writer.CreateFormField("image")
 	if err != nil {
 		return
 	}
-
+	_, err = io.Copy(f, request.Image)
+	if err != nil {
+		return
+	}
 	err = writer.WriteField("n", strconv.Itoa(request.N))
 	if err != nil {
 		return

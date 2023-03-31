@@ -7,7 +7,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 )
 
 // Whisper Defines the models provided by OpenAI to use when processing audio with OpenAI.
@@ -19,7 +18,7 @@ const (
 // ResponseFormat is not supported for now. We only return JSON text, which may be sufficient.
 type AudioRequest struct {
 	Model       string
-	FilePath    string
+	FRead       io.Reader
 	Prompt      string // For translation, it should be in English
 	Temperature float32
 	Language    string // For translation, just do not use it. It seems "en" works, not confirmed...
@@ -75,18 +74,12 @@ func (c *Client) callAudioAPI(
 // audioMultipartForm creates a form with audio file contents and the name of the model to use for
 // audio processing.
 func audioMultipartForm(request AudioRequest, w *multipart.Writer) error {
-	f, err := os.Open(request.FilePath)
-	if err != nil {
-		return fmt.Errorf("opening audio file: %w", err)
-	}
-	defer f.Close()
-
-	fw, err := w.CreateFormFile("file", f.Name())
+	fw, err := w.CreateFormField("file")
 	if err != nil {
 		return fmt.Errorf("creating form file: %w", err)
 	}
 
-	if _, err = io.Copy(fw, f); err != nil {
+	if _, err = io.Copy(fw, request.FRead); err != nil {
 		return fmt.Errorf("reading from opened audio file: %w", err)
 	}
 

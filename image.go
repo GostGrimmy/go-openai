@@ -6,7 +6,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"strconv"
 )
 
@@ -57,11 +56,11 @@ func (c *Client) CreateImage(ctx context.Context, request ImageRequest) (respons
 
 // ImageEditRequest represents the request structure for the image API.
 type ImageEditRequest struct {
-	Image  *os.File `json:"image,omitempty"`
-	Mask   *os.File `json:"mask,omitempty"`
-	Prompt string   `json:"prompt,omitempty"`
-	N      int      `json:"n,omitempty"`
-	Size   string   `json:"size,omitempty"`
+	Image  io.Reader `json:"image,omitempty"`
+	Mask   io.Reader `json:"mask,omitempty"`
+	Prompt string    `json:"prompt,omitempty"`
+	N      int       `json:"n,omitempty"`
+	Size   string    `json:"size,omitempty"`
 }
 
 // CreateEditImage - API call to create an image. This is the main endpoint of the DALL-E API.
@@ -70,22 +69,23 @@ func (c *Client) CreateEditImage(ctx context.Context, request ImageEditRequest) 
 	writer := multipart.NewWriter(body)
 
 	// image
-	image, err := writer.CreateFormFile("image", request.Image.Name())
+	var imgBytes []byte
+	_, err = request.Image.Read(imgBytes)
 	if err != nil {
 		return
 	}
-	_, err = io.Copy(image, request.Image)
+	err = writer.WriteField("image", string(imgBytes))
 	if err != nil {
 		return
 	}
-
 	// mask, it is optional
 	if request.Mask != nil {
-		mask, err2 := writer.CreateFormFile("mask", request.Mask.Name())
-		if err2 != nil {
+		var mBytes []byte
+		_, err = request.Image.Read(mBytes)
+		if err != nil {
 			return
 		}
-		_, err = io.Copy(mask, request.Mask)
+		err = writer.WriteField("mask", string(mBytes))
 		if err != nil {
 			return
 		}
@@ -117,9 +117,9 @@ func (c *Client) CreateEditImage(ctx context.Context, request ImageEditRequest) 
 
 // ImageVariRequest represents the request structure for the image API.
 type ImageVariRequest struct {
-	Image *os.File `json:"image,omitempty"`
-	N     int      `json:"n,omitempty"`
-	Size  string   `json:"size,omitempty"`
+	Image io.Reader `json:"image,omitempty"`
+	N     int       `json:"n,omitempty"`
+	Size  string    `json:"size,omitempty"`
 }
 
 // CreateVariImage - API call to create an image variation. This is the main endpoint of the DALL-E API.
@@ -129,11 +129,12 @@ func (c *Client) CreateVariImage(ctx context.Context, request ImageVariRequest) 
 	writer := multipart.NewWriter(body)
 
 	// image
-	image, err := writer.CreateFormFile("image", request.Image.Name())
+	var imgBytes []byte
+	_, err = request.Image.Read(imgBytes)
 	if err != nil {
 		return
 	}
-	_, err = io.Copy(image, request.Image)
+	err = writer.WriteField("image", string(imgBytes))
 	if err != nil {
 		return
 	}

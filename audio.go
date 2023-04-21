@@ -18,7 +18,7 @@ const (
 // ResponseFormat is not supported for now. We only return JSON text, which may be sufficient.
 type AudioRequest struct {
 	Model       string
-	FRead       io.Reader
+	FRead       *multipart.FileHeader
 	Prompt      string // For translation, it should be in English
 	Temperature float32
 	Language    string // For translation, just do not use it. It seems "en" works, not confirmed...
@@ -74,12 +74,16 @@ func (c *Client) callAudioAPI(
 // audioMultipartForm creates a form with audio file contents and the name of the model to use for
 // audio processing.
 func audioMultipartForm(request AudioRequest, w *multipart.Writer) error {
-	fw, err := w.CreateFormField("file")
+	fw, err := w.CreateFormFile("file", request.FRead.Filename)
 	if err != nil {
 		return fmt.Errorf("creating form file: %w", err)
 	}
+	open, err := request.FRead.Open()
+	if err != nil {
+		return fmt.Errorf("can no opened audio file: %w", err)
 
-	if _, err = io.Copy(fw, request.FRead); err != nil {
+	}
+	if _, err = io.Copy(fw, open); err != nil {
 		return fmt.Errorf("reading from opened audio file: %w", err)
 	}
 
